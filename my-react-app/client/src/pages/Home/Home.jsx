@@ -56,9 +56,9 @@ const Home = () => {
                             {isMobileMenuOpen ? '✕' : '☰'}
                         </button>
                         <nav className={`nav ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
-                            {/* <a href="#hazards" onClick={() => setIsMobileMenuOpen(false)}>Hazards</a>
+                            <a href="#hazards" onClick={() => setIsMobileMenuOpen(false)}>Hazards</a>
                             <a href="#features" onClick={() => setIsMobileMenuOpen(false)}>Features</a>
-                            <a href="#how-it-works" onClick={() => setIsMobileMenuOpen(false)}>How It Works</a> */}
+                            <a href="#how-it-works" onClick={() => setIsMobileMenuOpen(false)}>How It Works</a>
                             <button className="btn-primary btn-sm nav-btn-mobile" onClick={() => navigate('/login')}>
                                 Try Now
                             </button>
