@@ -1,248 +1,181 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { auth } from '../../config/firebase';
-import { logoutUser } from '../../services/auth.service';
-import './Dashboard.css';
+import React, { useState, useCallback, useMemo } from "react";
 
-const Dashboard = () => {
-  const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+// ===== IMPORT COMPONENTS =====
+import LayerToggle from "@/components/map/LayerToggle";
+import SimulationMode from "@/components/controls/SimulationMode";
+import SafetyAdvisory from "@/components/panels/SafetyAdvisory";
 
-  useEffect(() => {
-    // Check if user is authenticated
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        setLoading(false);
-      } else {
-        // Redirect to login if not authenticated
-        navigate('/login');
-      }
-    });
+import RiskMap from "@/components/map/RiskMap";
+import RiskSummaryPanel from "@/components/panels/RiskSummaryPanel";
+import WeatherPanel from "@/components/panels/WeatherPanel";
 
-    return () => unsubscribe();
-  }, [navigate]);
+// =============================
+// DASHBOARD
+// =============================
+export default function Dashboard() {
+  /* ---------- STATE ---------- */
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [layers, setLayers] = useState({
+    landslide: true,
+    flood: true,
+    rivers: false,
+    elevation: false,
+  });
+  const [simulationActive, setSimulationActive] = useState(false);
+  const [simulatedRainfall, setSimulatedRainfall] = useState(0);
 
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
+  /* ---------- DERIVED ---------- */
+  const effectiveRainfall = simulationActive ? simulatedRainfall : 0;
 
-  if (loading) {
-    return (
-      <div className="dashboard-loading">
-        <div className="loader"></div>
-      </div>
-    );
-  }
+  const currentRisk = useMemo(() => {
+    if (!selectedLocation) return "moderate";
+    if (effectiveRainfall > 120) return "severe";
+    if (effectiveRainfall > 80) return "high";
+    return selectedLocation.riskLevel || "moderate";
+  }, [selectedLocation, effectiveRainfall]);
 
+  /* ---------- HANDLERS ---------- */
+  const handleLayerToggle = useCallback((layerId) => {
+    setLayers((prev) => ({ ...prev, [layerId]: !prev[layerId] }));
+  }, []);
+
+  const handleLocationSelect = useCallback((location) => {
+    setSelectedLocation(location);
+  }, []);
+
+  const handleResetSimulation = useCallback(() => {
+    setSimulatedRainfall(0);
+    setSimulationActive(false);
+  }, []);
+
+  /* =============================
+     RENDER
+  ============================== */
   return (
-    <div className="dashboard">
-      {/* Sidebar */}
-      <aside className="dashboard-sidebar">
-        <div className="sidebar-header">
-          <div className="logo-section">
-            <div className="logo-icon">🏔️</div>
-            <h2>Kavach</h2>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        display: "grid",
+        gridTemplateRows: "64px 1fr",
+        background: "#020617",
+        color: "white",
+      }}
+    >
+      {/* ================= TOP PANEL ================= */}
+      <header
+        style={{
+          height: 64,
+          display: "flex",
+          alignItems: "center",
+          padding: "0 24px",
+          borderBottom: "1px solid #1e293b",
+          background: "rgba(2,6,23,0.9)",
+          backdropFilter: "blur(8px)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: "rgba(16,185,129,0.15)",
+              color: "#34d399",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 700,
+            }}
+          >
+            M
           </div>
-        </div>
-        
-        <nav className="sidebar-nav">
-          <a href="#" className="nav-item active">
-            <span className="icon">📊</span>
-            <span>Dashboard</span>
-          </a>
-          <a href="#" className="nav-item">
-            <span className="icon">📈</span>
-            <span>Analytics</span>
-          </a>
-          <a href="#" className="nav-item">
-            <span className="icon">⚙️</span>
-            <span>Settings</span>
-          </a>
-          <a href="#" className="nav-item">
-            <span className="icon">👤</span>
-            <span>Profile</span>
-          </a>
-        </nav>
-      </aside>
-
-      {/* Main Content */}
-      <div className="dashboard-main">
-        {/* Header */}
-        <header className="dashboard-header">
-          <div className="header-left">
-            <h1>Welcome back, {user?.displayName || user?.email?.split('@')[0] || 'User'}!</h1>
-            <p>Here's what's happening with your account today.</p>
-          </div>
-          <div className="header-right">
-            <div className="user-profile">
-              <div className="user-avatar">
-                {user?.photoURL ? (
-                  <img src={user.photoURL} alt="Profile" />
-                ) : (
-                  <div className="avatar-placeholder">
-                    {(user?.displayName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
-                  </div>
-                )}
-              </div>
-              <div className="user-info">
-                <p className="user-name">{user?.displayName || 'User'}</p>
-                <p className="user-email">{user?.email || 'No email'}</p>
-              </div>
-            </div>
-            <button className="logout-btn" onClick={handleLogout}>
-              Logout
-            </button>
-          </div>
-        </header>
-
-        {/* Stats Cards */}
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon">📊</div>
-            <div className="stat-content">
-              <h3>Total Views</h3>
-              <p className="stat-value">12,543</p>
-              <span className="stat-change positive">+12.5%</span>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon">👥</div>
-            <div className="stat-content">
-              <h3>Active Users</h3>
-              <p className="stat-value">2,345</p>
-              <span className="stat-change positive">+8.2%</span>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon">💰</div>
-            <div className="stat-content">
-              <h3>Revenue</h3>
-              <p className="stat-value">$45,231</p>
-              <span className="stat-change negative">-3.1%</span>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon">⭐</div>
-            <div className="stat-content">
-              <h3>Rating</h3>
-              <p className="stat-value">4.8/5</p>
-              <span className="stat-change positive">+0.3</span>
+          <div>
+            <div style={{ fontWeight: 600 }}>MountainGuard</div>
+            <div style={{ fontSize: 12, color: "#94a3b8" }}>
+              Disaster Risk Intelligence
             </div>
           </div>
         </div>
 
-        {/* Content Sections */}
-        <div className="dashboard-content">
-          <div className="content-left">
-            <div className="card">
-              <div className="card-header">
-                <h3>Recent Activity</h3>
-                <button className="view-all-btn">View All</button>
-              </div>
-              <div className="card-body">
-                <div className="activity-list">
-                  <div className="activity-item">
-                    <div className="activity-icon">📝</div>
-                    <div className="activity-details">
-                      <p className="activity-title">New document created</p>
-                      <p className="activity-time">2 hours ago</p>
-                    </div>
-                  </div>
-                  <div className="activity-item">
-                    <div className="activity-icon">✅</div>
-                    <div className="activity-details">
-                      <p className="activity-title">Task completed</p>
-                      <p className="activity-time">5 hours ago</p>
-                    </div>
-                  </div>
-                  <div className="activity-item">
-                    <div className="activity-icon">💬</div>
-                    <div className="activity-details">
-                      <p className="activity-title">New message received</p>
-                      <p className="activity-time">1 day ago</p>
-                    </div>
-                  </div>
-                  <div className="activity-item">
-                    <div className="activity-icon">🔔</div>
-                    <div className="activity-details">
-                      <p className="activity-title">System notification</p>
-                      <p className="activity-time">2 days ago</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="content-right">
-            <div className="card">
-              <div className="card-header">
-                <h3>Quick Actions</h3>
-              </div>
-              <div className="card-body">
-                <div className="quick-actions">
-                  <button className="action-btn">
-                    <span className="action-icon">➕</span>
-                    <span>Create New</span>
-                  </button>
-                  <button className="action-btn">
-                    <span className="action-icon">📤</span>
-                    <span>Upload File</span>
-                  </button>
-                  <button className="action-btn">
-                    <span className="action-icon">📧</span>
-                    <span>Send Message</span>
-                  </button>
-                  <button className="action-btn">
-                    <span className="action-icon">📋</span>
-                    <span>View Reports</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="card" style={{ marginTop: '20px' }}>
-              <div className="card-header">
-                <h3>Account Info</h3>
-              </div>
-              <div className="card-body">
-                <div className="info-list">
-                  <div className="info-item">
-                    <span className="info-label">Email:</span>
-                    <span className="info-value">{user?.email || 'N/A'}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Provider:</span>
-                    <span className="info-value">
-                      {user?.providerData?.[0]?.providerId || 'N/A'}
-                    </span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Member Since:</span>
-                    <span className="info-value">
-                      {user?.metadata?.creationTime 
-                        ? new Date(user.metadata.creationTime).toLocaleDateString() 
-                        : 'N/A'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div style={{ marginLeft: "auto", color: "#34d399", fontSize: 14 }}>
+          ● Live
         </div>
+      </header>
+
+      {/* ================= MAIN GRID ================= */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "280px 1fr 320px",
+          gap: 16,
+          padding: 16,
+        }}
+      >
+        {/* ===== LEFT COLUMN ===== */}
+        <aside
+  style={{
+    background: "rgba(15,23,42,0.7)",
+    borderRadius: 12,
+    padding: 16,
+    overflowY: "auto",
+  }}
+>
+  <LayerToggle layers={layers} onToggle={handleLayerToggle} />
+
+  <div style={{ marginTop: 16 }}>
+    <SimulationMode
+      isActive={simulationActive}
+      onToggle={setSimulationActive}
+      rainfall={simulatedRainfall}
+      onRainfallChange={setSimulatedRainfall}
+      onReset={handleResetSimulation}
+    />
+  </div>
+
+  <div style={{ marginTop: 16 }}>
+    <SafetyAdvisory riskLevel={currentRisk} />
+  </div>
+</aside>
+
+
+        {/* ===== CENTER COLUMN ===== */}
+        <main
+          style={{
+            borderRadius: 12,
+            overflow: "hidden",
+            border: "1px solid #1e293b",
+          }}
+        >
+          <RiskMap
+            selectedLocation={selectedLocation}
+            layers={layers}
+            simulatedRainfall={effectiveRainfall}
+            onLocationSelect={handleLocationSelect}
+          />
+        </main>
+
+        {/* ===== RIGHT COLUMN ===== */}
+        <aside
+          style={{
+            background: "rgba(15,23,42,0.7)",
+            borderRadius: 12,
+            padding: 16,
+            overflowY: "auto",
+          }}
+        >
+          <RiskSummaryPanel
+            location={selectedLocation}
+            simulatedRainfall={effectiveRainfall}
+            riskLevel={currentRisk}
+          />
+
+          <div style={{ marginTop: 16 }}>
+            <WeatherPanel simulatedRainfall={effectiveRainfall} />
+          </div>
+        </aside>
       </div>
     </div>
   );
-};
+}
 
-export default Dashboard;
