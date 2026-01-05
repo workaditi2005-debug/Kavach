@@ -3,7 +3,7 @@ import math
 import joblib
 import httpx
 import numpy as np
-import google.generativeai as genai
+from google import genai
 from fastapi import FastAPI, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -17,8 +17,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY not found in .env file")
 
-genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 app = FastAPI()
 MODEL_DIR = "ml_models"
@@ -106,7 +105,10 @@ async def chat_explanation(risk_data: dict = Body(...)):
     Provide a professional 2-sentence explanation and one safety tip.
     """
     try:
-        response = gemini_model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt
+        )
         return {"explanation": response.text}
     except:
         return {"explanation": "AI service temporarily offline."}
